@@ -29,7 +29,25 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
-
+# second job , to deploy the docker compose file
+  deploy-to-production:
+    needs: build-and-push
+    run-on: ubuntu-latest
+    environment: production
+    concurrency:
+        gtoup: production_emvironment
+        cancel-in-progress: false
+        steps:
+          - name:install SSH key
+          uses: shimataro/ssh-key-action@v2
+          with:
+            keys: ${{ secrets.SSH PRIVATE KEY }}
+            name: id_rsa
+            known_hosts: ${{secrets.SSH KNOWN HOSTS }}
+            cofig: |
+                hostproduction|
+                hostname ${{secrets.PRODUCTION HOST}}
+                USER ${{ secrets.production}}
 
 
 
