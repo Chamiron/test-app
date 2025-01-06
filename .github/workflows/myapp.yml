@@ -29,42 +29,61 @@ jobs:
           context: .
           push: true
           tags: ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
-# second job , to deploy the docker compose file
+
   deploy-to-production:
     needs: build-and-push
-    run-on: ubuntu-latest
+    runs-on: ubuntu-latest
     environment: production
     concurrency:
-        gtoup: production_emvironment
-        cancel-in-progress: false
-        steps:
-          - name:install SSH key
-          uses: shimataro/ssh-key-action@v2
-          with:
-            keys: ${{ secrets.SSH PRIVATE KEY }}
-            name: id_rsa
-            known_hosts: ${{secrets.SSH KNOWN HOSTS }}
-            cofig: |
-                hostproduction|
-                hostname ${{secrets.PRODUCTION HOST}}
-                USER ${{ secrets.production}}
+      group: production_environment
+      cancel-in-progress: false
 
+    steps:
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          name: id_rsa
+          known_hosts: ${{ secrets.SSH_KNOWN_HOSTS }}
+          config: |
+            Host production
+              HostName ${{ secrets.PRODUCTION_HOST }}
+              User ${{ secrets.PRODUCTION_USER }}
+              IdentityFile ~/.ssh/id_rsa
+              StrictHostKeyChecking no
 
+      - name: DockerHub Login
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKER_USERNAME }}
+          password: ${{ secrets.DOCKER_PASSWORD }}
 
+      - name: Setup Remote Directory
+        run: |
+          ssh production "sudo mkdir -p ${DEPLOY_PATH}/config"
+          ssh production "sudo mkdir -p ${DEPLOY_PATH}/data"
 
+      - name: Copy Configuration Files
+        run: |
+          if [ -f .env ]; then
+            scp .env production:${DEPLOY_PATH}/.env
+          else
+            echo ".env file not found, skipping"
+          fi
 
+          if [ -f docker-compose.yaml ]; then
+            scp docker-compose.yaml production:${DEPLOY_PATH}/docker-compose.yaml
+          else
+            echo "docker-compose.yaml not found, skipping"
+          fi
 
+          if [ -d ./config ]; then
+            scp -r ./config/* production:${DEPLOY_PATH}/config/
+          else
+            echo "./config directory not found, skipping"
+          fi
 
-
-
-
-
-
-
-
-
-
-
+ 
 
 
 
