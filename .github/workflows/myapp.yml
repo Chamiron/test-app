@@ -37,6 +37,8 @@ jobs:
     concurrency:
       group: production_environment
       cancel-in-progress: false
+    env:
+      DEPLOY_PATH: /var/www/myapp # Update this to the actual deployment directory
 
     steps:
       - name: Install SSH key
@@ -82,6 +84,7 @@ jobs:
           else
             echo "./config directory not found, skipping"
           fi
+
 
  
 
