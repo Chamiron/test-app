@@ -28,7 +28,7 @@ jobs:
         with:
           context: .
           push: true
-          tags: ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest
+          tags: ${{ secrets.DOCKER_USERNAME }}/frontend-app:latest,${{ secrets.DOCKER_USERNAME }}/frontend-app:${{ github.sha }}
 
   deploy-to-production:
     needs: build-and-push
@@ -38,7 +38,7 @@ jobs:
       group: production_environment
       cancel-in-progress: false
     env:
-      DEPLOY_PATH: /var/www/myapp # Update this to the actual deployment directory
+      DEPLOY_PATH: /var/www/myapp
 
     steps:
       - name: Install SSH key
@@ -54,6 +54,9 @@ jobs:
               IdentityFile ~/.ssh/id_rsa
               StrictHostKeyChecking no
 
+      - name: Fix SSH key permissions
+        run: chmod 600 ~/.ssh/id_rsa
+
       - name: DockerHub Login
         uses: docker/login-action@v2
         with:
@@ -62,163 +65,11 @@ jobs:
 
       - name: Setup Remote Directory
         run: |
-          ssh production "sudo mkdir -p ${DEPLOY_PATH}/config"
-          ssh production "sudo mkdir -p ${DEPLOY_PATH}/data"
+          ssh production "sudo mkdir -p ${DEPLOY_PATH}/config && sudo chown $USER:$USER ${DEPLOY_PATH}/config"
+          ssh production "sudo mkdir -p ${DEPLOY_PATH}/data && sudo chown $USER:$USER ${DEPLOY_PATH}/data"
 
       - name: Copy Configuration Files
         run: |
-          if [ -f .env ]; then
-            scp .env production:${DEPLOY_PATH}/.env
-          else
-            echo ".env file not found, skipping"
-          fi
-
-          if [ -f docker-compose.yaml ]; then
-            scp docker-compose.yaml production:${DEPLOY_PATH}/docker-compose.yaml
-          else
-            echo "docker-compose.yaml not found, skipping"
-          fi
-
-          if [ -d ./config ]; then
-            scp -r ./config/* production:${DEPLOY_PATH}/config/
-          else
-            echo "./config directory not found, skipping"
-          fi
-
-
- 
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+          [ -f .env ] && scp -i ~/.ssh/id_rsa .env production:${DEPLOY_PATH}/.env || echo ".env file not found"
+          [ -f docker-compose.yaml ] && scp -i ~/.ssh/id_rsa docker-compose.yaml production:${DEPLOY_PATH}/docker-compose.yaml || echo "docker-compose.yaml not found"
+          [ -d ./config ] && scp -r -i ~/.ssh/id_rsa ./config/* production:${DEPLOY_PATH}/config/ || echo "./config directory not found"
